@@ -218,204 +218,157 @@ if ($conn->connect_error) {
                                 </div>
                             </div>
                         </div>
+                        <script src="vendor/jquery/jquery.min.js"></script>
+                        <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+                        <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
+                        <script src="js/sb-admin-2.min.js"></script>
+                        <script>
+                            let tableData = [];
+                            let itemCounter = 1;
+
+                            $(document).ready(function() {
+                                generateNotaNumber();
+                                populateRekeningDropdown();
+
+                                $('#searchForm').on('submit', function(event) {
+                                    event.preventDefault();
+                                    searchItems();
+                                });
+
+                                $('#updateSaldo').on('click', function() {
+                                    checkout();
+                                });
+                            });
+
+                            function generateNotaNumber() {
+                                const prefix = 'AA-';
+                                const nextNumber = itemCounter.toString().padStart(3, '0');
+                                const notaNumber = prefix + nextNumber;
+                                $('#nomorNota').text(notaNumber);
+                            }
+
+                            function populateRekeningDropdown() {
+                                $.ajax({
+                                    url: 'get_rekening.php',
+                                    method: 'GET',
+                                    success: function(data) {
+                                        $('#rekening').html(data);
+                                    },
+                                    error: function(xhr, status, error) {
+                                        console.error('Error fetching rekening:', status, error);
+                                    }
+                                });
+                            }
+
+                            function searchItems() {
+                                const searchQuery = $('#search').val();
+                                $.ajax({
+                                    url: 'search_items.php',
+                                    type: 'GET',
+                                    data: { search: searchQuery },
+                                    success: function(response) {
+                                        const item = JSON.parse(response);
+                                        if (item) {
+                                            $('#kodeitem').val(item.kodeitem);
+                                            $('#nama').val(item.nama);
+                                            $('#hargajual').val(item.hargajual);
+                                            $('#searchResult').text('');
+                                        } else {
+                                            $('#searchResult').text('Item not found');
+                                        }
+                                    },
+                                    error: function(xhr, status, error) {
+                                        console.error('Error:', status, error);
+                                    }
+                                });
+                            }
+
+                            function addItem(event) {
+                                event.preventDefault();
+                                const kodeitem = $('#kodeitem').val();
+                                const nama = $('#nama').val();
+                                const qty = parseInt($('#qty').val());
+                                const hargajual = parseFloat($('#hargajual').val());
+
+                                if (kodeitem && nama && qty && hargajual) {
+                                    const item = { kodeitem, nama, qty, hargajual };
+                                    tableData.push(item);
+                                    renderTable();
+                                    resetForm();
+                                }
+                            }
+
+                            function renderTable() {
+                                const tbody = $('#itemTable tbody');
+                                tbody.empty();
+                                let total = 0;
+                                tableData.forEach((item, index) => {
+                                    const row = `<tr>
+                                        <td>${item.kodeitem}</td>
+                                        <td>${item.nama}</td>
+                                        <td>${item.qty}</td>
+                                        <td>${item.hargajual}</td>
+                                        <td class="actions">
+                                            <a href="#" onclick="editItem(${index})">Edit</a>
+                                            <a href="#" onclick="removeItem(${index})">Remove</a>
+                                        </td>
+                                    </tr>`;
+                                    tbody.append(row);
+                                    total += item.qty * item.hargajual;
+                                });
+                                $('#totalValue').text(total.toFixed(2));
+                                $('#tableDataInput').val(JSON.stringify(tableData));
+                            }
+
+                            function editItem(index) {
+                                const item = tableData[index];
+                                $('#kodeitem').val(item.kodeitem);
+                                $('#nama').val(item.nama);
+                                $('#qty').val(item.qty);
+                                $('#hargajual').val(item.hargajual);
+                                tableData.splice(index, 1);
+                                renderTable();
+                            }
+
+                            function removeItem(index) {
+                                tableData.splice(index, 1);
+                                renderTable();
+                            }
+
+                            function resetForm() {
+                                $('#itemForm')[0].reset();
+                            }
+
+                            function checkout() {
+                                const rekening = $('#rekening').val();
+                                $.ajax({
+                                    url: 'checkout.php',
+                                    type: 'POST',
+                                    data: {
+                                        tableData: JSON.stringify(tableData),
+                                        rekening: rekening
+                                    },
+                                    success: function(response) {
+                                        alert(response);
+                                        location.reload();
+                                    },
+                                    error: function(xhr, status, error) {
+                                        console.error('AJAX Error:', status, error);
+                                    }
+                                });
+                            }
+                        </script>
                     </div>
                 </div>
             </div>
+            <footer class="sticky-footer bg-white">
+                <div class="container my-auto">
+                    <div class="copyright text-center my-auto">
+                        <span>Copyright &copy; Your Website 2023</span>
+                    </div>
+                </div>
+            </footer>
         </div>
     </div>
-    <a class="scroll-to-top rounded" href="#page-top">
-        <i class="fas fa-angle-up"></i>
-    </a>
-    <script src="vendor/jquery/jquery.min.js"></script>
-    <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-    <script src="vendor/jquery-easing/jquery.easing.min.js"></script>
-    <script src="js/sb-admin-2.min.js"></script>
-    <script src="vendor/chart.js/Chart.min.js"></script>
-    <script src="js/demo/chart-area-demo.js"></script>
-    <script src="js/demo/chart-pie-demo.js"></script>
-    <script>
-        let tableData = [];
-
-        let notaCounter = 0;
-        const notaPrefix = 'AA';
-
-        function generateNotaNumber() {
-            const prefix = notaPrefix;
-            const suffix = String(notaCounter).padStart(3, '0');
-            const newNotaNumber = `${prefix}-${suffix}`;
-
-            // Display the nota number
-            $('#nomorNota').text(newNotaNumber);
-
-            // Increment the counter for the next nota number
-            notaCounter++;
-        }
-
-        $(document).ready(function() {
-            generateNotaNumber(); // Generate and display the nota number when the page loads
-        });
-
-        $(document).ready(function() {
-            // Generate a unique note number
-            generateNotaNumber();
-            // Populate rekening dropdown
-            populateRekeningDropdown();
-        });
-
-        $('#searchForm').on('submit', function(e) {
-                e.preventDefault();
-                var search = $('#search').val();
-                $.ajax({
-                    url: 'search_item.php',
-                    type: 'POST',
-                    data: { search: search },
-                    success: function(data) {
-                        if (data) {
-                            var item = JSON.parse(data);
-                            $('#kodeitem').val(item.kodeitem);
-                            $('#nama').val(item.nama);
-                            $('#hargajual').val(item.hargajual);
-                            $('#searchResult').text('');
-                        } else {
-                            $('#searchResult').text('Item not found');
-                            $('#kodeitem').val('');
-                            $('#nama').val('');
-                            $('#hargajual').val('');
-                        }
-                    }
-                });
-            });
-
-            $('#updateSaldo').on('click', function() {
-                checkout();
-            });
-        
-        function generateNotaNumber() {
-            // Generate a note number (e.g., AA-001, AA-002, ... AB-001, AB-002, ...)
-            // Placeholder implementation, replace with your logic
-            var nomorNota = 'AA-001'; // Example
-            $('#nomorNota').text(nomorNota);
-        }
-
-        function populateRekeningDropdown() {
-            // Fetch rekening data and populate the dropdown
-            $.ajax({
-                url: 'fetch_rekening.php', // Replace with your PHP script to fetch rekening data
-                type: 'GET',
-                success: function(data) {
-                    var rekeningDropdown = $('#rekening');
-                    var rekeningList = JSON.parse(data);
-                    rekeningList.forEach(function(rekening) {
-                        rekeningDropdown.append('<option value="' + rekening.kode + '">' + rekening.nama + '</option>');
-                    });
-                }
-            });
-        }
-
-        function addItem(event) {
-            event.preventDefault();
-            let kodeitem = document.getElementById('kodeitem').value;
-            let nama = document.getElementById('nama').value;
-            let qty = document.getElementById('qty').value;
-            let hargajual = document.getElementById('hargajual').value;
-
-            if (kodeitem && nama && qty >= 1 && hargajual) {
-                let newRow = document.createElement('tr');
-                newRow.innerHTML = `
-                    <td>${kodeitem}</td>
-                    <td>${nama}</td>
-                    <td>${qty}</td>
-                    <td>${hargajual}</td>
-                    <td><button onclick="deleteRow(this)" class="btn btn-danger">Hapus</button></td>
-                `;
-                document.querySelector('#itemTable tbody').appendChild(newRow);
-
-                tableData.push({ kodeitem, nama, qty, hargajual });
-                updateTotal();
-                updateTableDataInput();
-            } else {
-                alert("Please fill all fields and ensure quantity is at least 1");
-            }
-        }
-
-        function deleteRow(button) {
-            let row = button.closest('tr');
-            let index = Array.from(row.parentNode.children).indexOf(row);
-            row.remove();
-
-            tableData.splice(index, 1);
-            updateTotal();
-            updateTableDataInput();
-        }
-
-        function updateTotal() {
-            let total = 0;
-            tableData.forEach(item => {
-                total += parseFloat(item.qty) * parseFloat(item.hargajual);
-            });
-            document.getElementById('totalValue').innerText = total.toFixed(2);
-        }
-
-        function updateTableDataInput() {
-            document.getElementById('tableDataInput').value = JSON.stringify(tableData);
-        }
-
-        function populateRekeningDropdown() {
-            $.ajax({
-                url: 'fetch_rekening.php', // Replace with your PHP script to fetch rekening data
-                type: 'GET',
-                success: function(data) {
-                    var rekeningDropdown = $('#rekening');
-                    var rekeningList = JSON.parse(data);
-                    rekeningList.forEach(function(rekening) {
-                        rekeningDropdown.append('<option value="' + rekening.kode + '">' + rekening.nama + '</option>');
-                    });
-                }
-            });
-        }
-
-        $(document).ready(function() {
-            generateNotaNumber(); // Generate and display the nota number when the page loads
-            populateRekeningDropdown(); // Populate rekening dropdown
-        });
-
-        function checkout() {
-            // Handle checkout logic
-            // Placeholder for actual checkout function
-            $.ajax({
-                url: 'checkout.php', // Replace with your PHP script to handle checkout
-                type: 'POST',
-                data: { tableData: JSON.stringify(tableData) },
-                success: function(response) {
-                    alert(response);
-                    location.reload(); // Reload page after checkout
-                }
-            });
-        }
-
-        function populateRekeningDropdown() {
-            $.ajax({
-                url: 'fetch_rekening.php', // URL of your PHP script
-                type: 'GET',
-                success: function(data) {
-                    var rekeningDropdown = $('#rekening');
-                    var rekeningList = JSON.parse(data);
-                    
-                    // Check for errors in response
-                    if (rekeningList.error) {
-                        console.error('Error fetching rekening data:', rekeningList.error);
-                        return;
-                    }
-                    
-                    rekeningList.forEach(function(rekening) {
-                        rekeningDropdown.append('<option value="' + rekening.kode + '">' + rekening.nama + '</option>');
-                    });
-                },
-                error: function(xhr, status, error) {
-                    console.error('AJAX Error:', status, error);
-                }
-            });
-        }
-    </script>
 </body>
 </html>
